@@ -37,22 +37,29 @@ export class Source extends BaseSource<Params> {
           const cwd = await getCwd(denops, ctx.winId);
 
           await Promise.all(clients.map(async (client) => {
-            const params = await makePositionParams(
-              denops,
-              ctx.bufNr,
-              ctx.winId,
-              client.offsetEncoding,
-            ) as ReferenceParams;
-            params.context = { includeDeclaration };
-            const result = await lspRequest(
-              denops,
-              client,
-              method,
-              params,
-              ctx.bufNr,
-            );
-            const items = parseResult(result, client, ctx.bufNr, method, cwd);
-            controller.enqueue(items);
+            const isSupported = await denops.call(
+                "luaeval",
+                "vim.lsp.get_client_by_id(_A[1]).supports_method(_A[2])",
+                [client.id, method],
+              )
+            if (isSupported) {
+              const params = await makePositionParams(
+                denops,
+                ctx.bufNr,
+                ctx.winId,
+                client.offsetEncoding,
+              ) as ReferenceParams;
+              params.context = { includeDeclaration };
+              const result = await lspRequest(
+                denops,
+                client,
+                method,
+                params,
+                ctx.bufNr,
+              );
+              const items = parseResult(result, client, ctx.bufNr, method, cwd);
+              controller.enqueue(items);
+            }
           }));
         } catch (e) {
           printError(denops, e, "source-lsp_references");
